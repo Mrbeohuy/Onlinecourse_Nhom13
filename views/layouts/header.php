@@ -29,7 +29,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
                 <!-- LINK CHUNG -->
                 <li class="nav-item">
-                    <a class="nav-link" href="index.php">Trang chủ</a>
+                    <a class="nav-link" href="index.php"></a>
                 </li>
 
                 <?php if (isset($_SESSION['user'])): ?>
@@ -59,13 +59,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
                         <li class="nav-item">
                             <a class="nav-link" href="index.php?controller=lesson&action=index">
-                                📖 Quản lý bài học
+                                
                             </a>
                         </li>
 
                         <li class="nav-item">
                             <a class="nav-link" href="index.php?controller=materials&action=index">
-                                📂 Tài liệu học tập
+                                
                             </a>
                         </li>
                     <?php endif; ?>
