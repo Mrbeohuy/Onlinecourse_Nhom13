@@ -3,10 +3,6 @@ class Category {
     private $conn;
     private $table = "categories";
 
-    public $id;
-    public $name;
-    public $description;
-
     public function __construct($db) {
         $this->conn = $db;
     }
@@ -15,7 +11,7 @@ class Category {
         $query = "SELECT * FROM " . $this->table . " ORDER BY name ASC";
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getById($id) {
@@ -23,7 +19,24 @@ class Category {
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(":id", $id);
         $stmt->execute();
-        return $stmt->fetch();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // --- CODE MỚI ---
+    
+    public function create($name, $description) {
+        $query = "INSERT INTO " . $this->table . " (name, description, created_at) VALUES (:name, :desc, NOW())";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':name', $name);
+        $stmt->bindParam(':desc', $description);
+        return $stmt->execute();
+    }
+
+    public function delete($id) {
+        $query = "DELETE FROM " . $this->table . " WHERE id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
     }
 }
 ?>

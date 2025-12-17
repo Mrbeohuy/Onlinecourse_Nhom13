@@ -7,7 +7,7 @@ class Course {
         $this->conn = $db;
     }
 
-    // Lấy khóa học theo giảng viên
+    // --- CODE CŨ (Giữ nguyên) ---
     public function getByInstructor($instructor_id) {
         $query = "SELECT * FROM " . $this->table . " WHERE instructor_id = :id ORDER BY created_at DESC";
         $stmt = $this->conn->prepare($query);
@@ -16,13 +16,12 @@ class Course {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // Tạo khóa học mới
     public function create($title, $desc, $instructor_id, $cat_id, $price, $duration, $level, $image) {
+        // Mặc định tạo ra là 'draft' hoặc 'pending' tùy logic, ở đây giả sử pending để admin duyệt
         $query = "INSERT INTO " . $this->table . " 
-                  (title, description, instructor_id, category_id, price, duration_weeks, level, image, created_at) 
-                  VALUES (:title, :desc, :uid, :cat, :price, :dur, :level, :img, NOW())";
+                  (title, description, instructor_id, category_id, price, duration_weeks, level, image, status, created_at) 
+                  VALUES (:title, :desc, :uid, :cat, :price, :dur, :level, :img, 'pending', NOW())";
         $stmt = $this->conn->prepare($query);
-        // Bind params... (giản lược cho ngắn gọn)
         $stmt->execute([
             ':title' => $title, ':desc' => $desc, ':uid' => $instructor_id,
             ':cat' => $cat_id, ':price' => $price, ':dur' => $duration,
@@ -30,8 +29,7 @@ class Course {
         ]);
         return $this->conn->lastInsertId();
     }
-    
-    // Lấy danh sách học viên của 1 khóa học (kèm tiến độ)
+
     public function getStudentsProgress($course_id) {
         $query = "SELECT u.fullname, u.email, e.enrolled_date, e.progress, e.status 
                   FROM enrollments e
@@ -42,14 +40,15 @@ class Course {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-    
-    // Helper cho Home Page
+
     public function getLatestCourses($limit) {
-        $query = "SELECT * FROM " . $this->table . " ORDER BY created_at DESC LIMIT " . $limit;
-        $stmt = $this->conn->prepare($query);
+        // Chỉ lấy khóa học đã published
+        $query = "SELECT * FROM " . $this->table . " WHERE status = 'published' ORDER BY created_at DESC LIMIT " . $limit;
+        $stmt = $this->conn->prepare($query); // Đã sửa lỗi syntax $this->table
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
     public function getById($id) {
         $query = "SELECT * FROM " . $this->table . " WHERE id = :id LIMIT 1";
         $stmt = $this->conn->prepare($query);
@@ -58,41 +57,56 @@ class Course {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // 2. Cập nhật khóa học
     public function update($id, $title, $desc, $cat_id, $price, $duration, $level, $image) {
         $query = "UPDATE " . $this->table . " 
-                  SET title = :title, 
-                      description = :desc, 
-                      category_id = :cat, 
-                      price = :price, 
-                      duration_weeks = :dur, 
-                      level = :level, 
-                      image = :image,
-                      updated_at = NOW()
+                  SET title = :title, description = :desc, category_id = :cat, 
+                      price = :price, duration_weeks = :dur, level = :level, 
+                      image = :image, updated_at = NOW()
                   WHERE id = :id";
-
         $stmt = $this->conn->prepare($query);
-
-        $stmt->bindParam(':title', $title);
-        $stmt->bindParam(':desc', $desc);
-        $stmt->bindParam(':cat', $cat_id);
-        $stmt->bindParam(':price', $price);
-        $stmt->bindParam(':dur', $duration);
-        $stmt->bindParam(':level', $level);
-        $stmt->bindParam(':image', $image);
-        $stmt->bindParam(':id', $id);
-
-        return $stmt->execute();
+        $stmt->execute([
+            ':title' => $title, ':desc' => $desc, ':cat' => $cat_id,
+            ':price' => $price, ':dur' => $duration, ':level' => $level,
+            ':image' => $image, ':id' => $id
+        ]);
+        return true;
     }
 
-    // 3. Xóa khóa học
     public function delete($id) {
-        // Lưu ý: Nếu có khóa ngoại (Lessons, Enrollments), cần xóa các bảng con trước 
-        // hoặc cài đặt ON DELETE CASCADE trong MySQL. Ở đây ta xóa bảng courses.
         $query = "DELETE FROM " . $this->table . " WHERE id = :id";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id', $id);
         return $stmt->execute();
+    }
+
+    // --- CODE MỚI: Chức năng cho Admin ---
+
+    // Lấy danh sách khóa học đang chờ duyệt (pending)
+    public function getPendingCourses() {
+        $query = "SELECT c.*, u.fullname as instructor_name 
+                  FROM " . $this->table . " c 
+                  JOIN users u ON c.instructor_id = u.id 
+                  WHERE c.status = 'pending'";
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Duyệt khóa học
+    public function approveCourse($id) {
+        $query = "UPDATE " . $this->table . " SET status = 'published' WHERE id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id);
+        return $stmt->execute();
+    }
+
+    // Đếm tổng khóa học
+    public function countCourses() {
+        $query = "SELECT COUNT(*) as total FROM " . $this->table;
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['total'];
     }
 }
 ?>
